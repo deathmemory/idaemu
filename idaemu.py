@@ -5,7 +5,12 @@ from unicorn.arm_const import *
 from unicorn.arm64_const import *
 from struct import unpack, pack, unpack_from, calcsize
 from idaapi import get_func
-from idc import Qword, GetManyBytes, SelStart, SelEnd, here, ItemSize
+from idc import here
+from ida_bytes import get_data_elsize as ItemSize
+from ida_bytes import get_qword as Qword
+from ida_bytes import get_bytes as GetManyBytes
+from idc import read_selection_start as SelStart
+from idc import read_selection_end as SelEnd
 from idautils import XrefsTo
 
 PAGE_ALIGN = 0x1000  # 4k
@@ -95,13 +100,17 @@ class Emu(object):
 
     def _getOriginData(self, address, size):
         res = []
-        for offset in xrange(0, size, 64):
+        for offset in range(0, size, 64):
             tmp = GetManyBytes(address + offset, 64)
             if tmp == None:
                 res.extend([pack("<Q", Qword(address + offset + i)) for i in range(0, 64, 8)])
             else:
                 res.append(tmp)
-        res = "".join(res)
+        # res = "".join(res)
+        full = b''
+        for cell in res:
+            full += cell
+        res = full
         return res[:size]
 
     def _init(self):
@@ -184,6 +193,7 @@ class Emu(object):
     def _showRegs(self, uc):
         print(">>> regs:")
         try:
+            eflags = False
             if self.mode == UC_MODE_16:
                 ax = uc.reg_read(UC_X86_REG_AX)
                 bx = uc.reg_read(UC_X86_REG_BX)
